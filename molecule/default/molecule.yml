@@ -1,0 +1,13 @@
+---
+# Installs and configures the agent with a dummy onboarding package. The agent cannot license
+# itself in a container, so the health and connectivity checks are switched off here and run
+# against a real VM instead (see the live recipe in the justfile).
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy

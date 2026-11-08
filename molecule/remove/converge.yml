@@ -1,0 +1,21 @@
+---
+- name: Install the agent without onboarding
+  hosts: all
+  become: true
+  vars:
+    mde_linux_onboard: false
+  roles:
+    - role: libre_devops.mde_linux
+
+- name: Remove the agent, its repository and its data
+  hosts: all
+  become: true
+  vars:
+    mde_linux_state: absent
+    mde_linux_offboarding_file: "{{ playbook_dir }}/../fixtures/mdatp_offboard.json"
+    mde_linux_remove_repository: true
+    mde_linux_remove_data: true
+    mde_linux_health_retries: 1
+    mde_linux_health_delay: 1
+  roles:
+    - role: libre_devops.mde_linux

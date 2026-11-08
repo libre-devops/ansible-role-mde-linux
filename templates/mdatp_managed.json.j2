@@ -1,0 +1,21 @@
+{#- Builds the managed configuration profile. See tasks/managed_config.yml. -#}
+{%- macro without(data, path) -%}
+{%- set head = path[0] -%}
+{%- if data is not mapping or head not in data -%}
+{{ data | to_json }}
+{%- elif path | length == 1 -%}
+{{ data | dict2items | rejectattr('key', 'equalto', head) | items2dict | to_json }}
+{%- else -%}
+{{ data | combine({head: (without(data[head], path[1:]) | from_json)}) | to_json }}
+{%- endif -%}
+{%- endmacro -%}
+{%- if mde_linux_managed_config_mode == 'merge' -%}
+{%- set base = __mde_linux_managed_existing | combine(mde_linux_managed_config, recursive=true, list_merge=mde_linux_managed_config_list_merge) -%}
+{%- else -%}
+{%- set base = mde_linux_managed_config -%}
+{%- endif -%}
+{%- set profile = namespace(data=base) -%}
+{%- for path in mde_linux_managed_config_remove -%}
+{%- set profile.data = without(profile.data, path.split('.')) | from_json -%}
+{%- endfor -%}
+{{ profile.data | to_json }}

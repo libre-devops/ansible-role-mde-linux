@@ -1,0 +1,33 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Create the managed configuration directory
+      ansible.builtin.file:
+        path: /etc/opt/microsoft/mdatp/managed
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Write a profile as another tool would have left it
+      ansible.builtin.copy:
+        dest: /etc/opt/microsoft/mdatp/managed/mdatp_managed.json
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          {
+            "antivirusEngine": {
+              "enforcementLevel": "passive",
+              "exclusions": [
+                {"$type": "excludedPath", "isDirectory": true, "path": "/opt/existing"}
+              ]
+            },
+            "cloudService": {
+              "enabled": true,
+              "proxy": "http://proxy.example.com:8080/"
+            }
+          }

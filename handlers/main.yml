@@ -1,0 +1,6 @@
+---
+- name: Restart mdatp after a managed configuration change
+  ansible.builtin.systemd_service:
+    name: mdatp
+    state: restarted
+  when: mde_linux_restart_on_managed_config_change | bool

@@ -1,0 +1,18 @@
+---
+# Refresh straight away after the source list changed, otherwise when older than an hour.
+- name: Refresh the apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: "{{ 0 if (__mde_linux_apt_source | default({}) is changed) else 3600 }}"
+  when: ansible_facts['pkg_mgr'] == 'apt'
+
+- name: Install the mdatp package
+  ansible.builtin.package:
+    name: "{{ __mde_linux_package }}"
+    state: "{{ mde_linux_package_state }}"
+
+- name: Start the mdatp service and enable it at boot
+  ansible.builtin.systemd_service:
+    name: mdatp
+    state: started
+    enabled: true

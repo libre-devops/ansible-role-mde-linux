@@ -1,0 +1,22 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    mde_linux_onboarding_file: "{{ playbook_dir }}/../fixtures/mdatp_onboard.json"
+    # The agent cannot license itself in a container: skip the checks, and poll briefly.
+    mde_linux_verify: false
+    mde_linux_health_retries: 1
+    mde_linux_health_delay: 1
+    mde_linux_managed_config:
+      antivirusEngine:
+        enforcementLevel: real_time
+      cloudService:
+        enabled: true
+        automaticDefinitionUpdateEnabled: true
+      edr:
+        tags:
+          - key: GROUP
+            value: molecule
+  roles:
+    - role: libre_devops.mde_linux

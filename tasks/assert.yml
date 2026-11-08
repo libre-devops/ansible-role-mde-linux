@@ -1,0 +1,58 @@
+---
+# Types and allowed values are checked by meta/argument_specs.yml before this runs. These
+# checks cover what the specification cannot express.
+
+- name: Gather the facts the role needs
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - "!min"
+      - distribution
+      - pkg_mgr
+      - service_mgr
+      - architecture
+  when: >-
+    ansible_facts['os_family'] is not defined
+    or ansible_facts['pkg_mgr'] is not defined
+    or ansible_facts['service_mgr'] is not defined
+    or ansible_facts['architecture'] is not defined
+
+- name: Check the host is supported
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in __mde_linux_supported_os_families
+      - ansible_facts['architecture'] in __mde_linux_supported_architectures
+      - ansible_facts['service_mgr'] == 'systemd'
+    fail_msg: >-
+      Defender for Endpoint needs a supported RHEL, Debian or SUSE family distribution on
+      x86_64 or aarch64 with systemd. This host is {{ ansible_facts['distribution'] }}
+      {{ ansible_facts['distribution_version'] }} on {{ ansible_facts['architecture'] }} with
+      {{ ansible_facts['service_mgr'] }}.
+    quiet: true
+
+- name: Check an onboarding package is given
+  ansible.builtin.assert:
+    that:
+      - (mde_linux_onboarding_file | length > 0) != (mde_linux_onboarding_content | length > 0)
+    fail_msg: >-
+      Set exactly one of mde_linux_onboarding_file or mde_linux_onboarding_content, or set
+      mde_linux_onboard to false to install the agent without onboarding it.
+    quiet: true
+  when:
+    - mde_linux_state == 'present'
+    - mde_linux_onboard | bool
+
+- name: Check an offboarding package is given
+  ansible.builtin.assert:
+    that:
+      - (mde_linux_offboarding_file | length > 0) != (mde_linux_offboarding_content | length > 0)
+    fail_msg: Set exactly one of mde_linux_offboarding_file or mde_linux_offboarding_content.
+    quiet: true
+  when: mde_linux_state == 'offboarded'
+
+- name: Check a pinned version is not combined with latest
+  ansible.builtin.assert:
+    that:
+      - not (mde_linux_version | length > 0 and mde_linux_package_state == 'latest')
+    fail_msg: mde_linux_version pins a version, so mde_linux_package_state must be present.
+    quiet: true

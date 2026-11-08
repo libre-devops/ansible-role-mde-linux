@@ -1,0 +1,71 @@
+---
+# Writes /etc/opt/microsoft/mdatp/managed/mdatp_managed.json. Also an entry point of its own,
+# for changing the profile without running the rest of the role:
+#
+#   - ansible.builtin.include_role:
+#       name: libre_devops.mde_linux
+#       tasks_from: managed_config
+#
+# replace writes mde_linux_managed_config as the whole file. merge reads the file already on
+# the host and deep-merges mde_linux_managed_config into it, so other settings are kept. In
+# both modes, the dotted paths in mde_linux_managed_config_remove are deleted afterwards.
+#
+# Most settings apply without a restart. Microsoft lists the diagnostic level and log
+# rotation settings as the exceptions, so a restart is opt in.
+
+- name: Read the current mdatp_managed.json
+  ansible.builtin.slurp:
+    src: "{{ __mde_linux_managed_config_path }}"
+  register: __mde_linux_managed_current
+  failed_when: false
+  when: mde_linux_managed_config_mode == 'merge'
+
+- name: Parse the current mdatp_managed.json
+  ansible.builtin.set_fact:
+    __mde_linux_managed_existing: >-
+      {{ (__mde_linux_managed_current.content | b64decode | from_json)
+         if (__mde_linux_managed_current.content | default('') | length > 0) else {} }}
+  when: mde_linux_managed_config_mode == 'merge'
+
+- name: Check the current mdatp_managed.json holds a JSON object
+  ansible.builtin.assert:
+    that:
+      - __mde_linux_managed_existing is mapping
+    fail_msg: >-
+      {{ __mde_linux_managed_config_path }} does not contain a JSON object, so it cannot be
+      merged. Fix the file, or set mde_linux_managed_config_mode to replace.
+    quiet: true
+  when: mde_linux_managed_config_mode == 'merge'
+
+- name: Build the profile
+  ansible.builtin.set_fact:
+    __mde_linux_managed_profile: "{{ lookup('ansible.builtin.template', 'mdatp_managed.json.j2') | from_json }}"
+
+- name: Check the profile only uses supported tag keys
+  ansible.builtin.assert:
+    that:
+      - item.key | default('') in __mde_linux_supported_tag_keys
+    fail_msg: >-
+      edr.tags in mdatp_managed.json has the key '{{ item.key | default('') }}'. Microsoft
+      supports only {{ __mde_linux_supported_tag_keys | join(', ') }}.
+    quiet: true
+  loop: "{{ __mde_linux_managed_profile.edr.tags | default([]) }}"
+  loop_control:
+    label: "{{ item.key | default('') }}"
+
+- name: Create the managed configuration directory
+  ansible.builtin.file:
+    path: "{{ __mde_linux_managed_config_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write mdatp_managed.json
+  ansible.builtin.copy:
+    content: "{{ __mde_linux_managed_profile | to_nice_json(indent=2) }}\n"
+    dest: "{{ __mde_linux_managed_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart mdatp after a managed configuration change

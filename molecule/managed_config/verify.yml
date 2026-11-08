@@ -1,0 +1,24 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read mdatp_managed.json
+      ansible.builtin.slurp:
+        src: /etc/opt/microsoft/mdatp/managed/mdatp_managed.json
+      register: __verify_managed
+
+    - name: Parse the profile
+      ansible.builtin.set_fact:
+        __verify_profile: "{{ __verify_managed.content | b64decode | from_json }}"
+
+    - name: Check the merge kept, changed, added and deleted the right settings
+      ansible.builtin.assert:
+        that:
+          - __verify_profile.antivirusEngine.enforcementLevel == 'real_time'
+          - __verify_profile.antivirusEngine.exclusions | map(attribute='path') | list == ['/opt/existing', '/opt/added']
+          - __verify_profile.cloudService.enabled
+          - "'proxy' not in __verify_profile.cloudService"
+          - "__verify_profile.edr.tags == [{'key': 'GROUP', 'value': 'molecule'}]"
+        quiet: true

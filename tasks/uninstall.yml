@@ -1,0 +1,35 @@
+---
+# Microsoft's manual uninstall: apt-get purge on Debian and Ubuntu, a package removal
+# elsewhere. The repository stays unless mde_linux_remove_repository is true, because other
+# Microsoft agents (the Azure Arc agent, for example) use the same one.
+
+- name: Purge the mdatp package
+  ansible.builtin.apt:
+    name: mdatp
+    state: absent
+    purge: true
+  when: ansible_facts['pkg_mgr'] == 'apt'
+
+- name: Remove the mdatp package
+  ansible.builtin.package:
+    name: mdatp
+    state: absent
+  when: ansible_facts['pkg_mgr'] != 'apt'
+
+- name: Delete the agent's configuration, data and logs
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ __mde_linux_data_dirs }}"
+  when: mde_linux_remove_data | bool
+
+- name: Remove the repository definition
+  ansible.builtin.file:
+    path: >-
+      {{ '/etc/apt/sources.list.d/microsoft-' ~ __mde_linux_repo_channel ~ '.list'
+         if ansible_facts['pkg_mgr'] == 'apt'
+         else __mde_linux_rpm_repo_dir ~ '/microsoft-' ~ __mde_linux_repo_channel ~ '.repo' }}
+    state: absent
+  when:
+    - mde_linux_manage_repository | bool
+    - mde_linux_remove_repository | bool

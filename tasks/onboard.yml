@@ -1,0 +1,59 @@
+---
+# Onboarding follows Microsoft's mde_installer.sh: remove any offboarding blob, put
+# mdatp_onboard.json in /etc/opt/microsoft/mdatp, then wait for "licensed" to turn true. The
+# file is only copied while the device is not licensed, so later runs change nothing.
+
+- name: Read the licence state
+  ansible.builtin.command:
+    cmd: mdatp health --field licensed
+  register: __mde_linux_licensed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  retries: "{{ mde_linux_health_retries }}"
+  delay: "{{ mde_linux_health_delay }}"
+  until: __mde_linux_licensed.rc == 0
+
+- name: Read the organisation the device is onboarded to
+  ansible.builtin.command:
+    cmd: mdatp health --field org_id
+  register: __mde_linux_org_id
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Note the current onboarding state
+  ansible.builtin.set_fact:
+    __mde_linux_is_licensed: "{{ __mde_linux_licensed.rc == 0 and __mde_linux_licensed.stdout | trim == 'true' }}"
+    __mde_linux_current_org_id: "{{ __mde_linux_org_id.stdout | default('') | trim | replace('\"', '') if __mde_linux_org_id.rc == 0 else '' }}"
+
+- name: Stop if the device is onboarded to a different organisation
+  ansible.builtin.assert:
+    that:
+      - __mde_linux_current_org_id == mde_linux_expected_org_id
+    fail_msg: >-
+      This device is onboarded to organisation {{ __mde_linux_current_org_id }}, not
+      {{ mde_linux_expected_org_id }}. Offboard it first (mde_linux_state: offboarded with that
+      organisation's offboarding package), then run the role again.
+    quiet: true
+  when:
+    - __mde_linux_is_licensed
+    - mde_linux_expected_org_id | length > 0
+    - not mde_linux_force_onboarding
+
+- name: Remove a leftover offboarding file
+  ansible.builtin.file:
+    path: "{{ __mde_linux_offboarding_path }}"
+    state: absent
+
+- name: Copy the onboarding package
+  ansible.builtin.copy:
+    src: "{{ mde_linux_onboarding_file if mde_linux_onboarding_file | length > 0 else omit }}"
+    content: "{{ mde_linux_onboarding_content if mde_linux_onboarding_content | length > 0 else omit }}"
+    dest: "{{ __mde_linux_onboarding_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  diff: false
+  no_log: true
+  when: (not __mde_linux_is_licensed) or (mde_linux_force_onboarding | bool)

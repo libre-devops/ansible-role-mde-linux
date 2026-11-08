@@ -1,0 +1,39 @@
+---
+galaxy_info:
+  namespace: libre_devops
+  role_name: mde_linux
+  author: Craig Thacker
+  company: Libre DevOps
+  description: >-
+    Install, configure, onboard and offboard Microsoft Defender for Endpoint on Linux, from
+    the signed packages.microsoft.com repository
+  license: MIT
+  min_ansible_version: "2.16"
+  issue_tracker_url: https://github.com/libre-devops/ansible-role-mde-linux/issues
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+        - "10"
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: SLES
+      versions:
+        - "15"
+  galaxy_tags:
+    - security
+    - defender
+    - mde
+    - mdatp
+    - edr
+    - antivirus
+    - microsoft
+
+dependencies: []

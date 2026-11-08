@@ -1,0 +1,13 @@
+---
+# Example used by `just live`. Put the host list in an inventory and the variables in
+# group_vars or an -e @file, for example:
+#
+#   mde_linux_onboarding_file: files/mdatp_onboard.json   # encrypted with ansible-vault
+#   mde_linux_expected_org_id: 00000000-0000-0000-0000-000000000000
+#
+#   just live inventory.ini --ask-vault-pass
+- name: Defender for Endpoint on Linux servers
+  hosts: all
+  become: true
+  roles:
+    - role: libre_devops.mde_linux

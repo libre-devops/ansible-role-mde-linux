@@ -1,0 +1,57 @@
+---
+# Offboarding follows Microsoft's JSON method: put mdatp_offboard.json in
+# /etc/opt/microsoft/mdatp and wait for "licensed" to turn false. The onboarding blob is
+# removed as well, so the host cannot onboard itself again by accident.
+
+- name: Check whether the agent is installed
+  ansible.builtin.command:
+    cmd: mdatp version
+  register: __mde_linux_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Offboard an installed agent
+  when: __mde_linux_installed.rc == 0
+  block:
+    - name: Read the licence state
+      ansible.builtin.command:
+        cmd: mdatp health --field licensed
+      register: __mde_linux_offboard_licensed
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      retries: "{{ mde_linux_health_retries }}"
+      delay: "{{ mde_linux_health_delay }}"
+      until: __mde_linux_offboard_licensed.rc == 0
+
+    - name: Remove the onboarding package
+      ansible.builtin.file:
+        path: "{{ __mde_linux_onboarding_path }}"
+        state: absent
+
+    - name: Copy the offboarding package
+      ansible.builtin.copy:
+        src: "{{ mde_linux_offboarding_file if mde_linux_offboarding_file | length > 0 else omit }}"
+        content: "{{ mde_linux_offboarding_content if mde_linux_offboarding_content | length > 0 else omit }}"
+        dest: "{{ __mde_linux_offboarding_path }}"
+        owner: root
+        group: root
+        mode: "0600"
+      diff: false
+      no_log: true
+      when: __mde_linux_offboard_licensed.stdout | default('') | trim == 'true'
+
+    - name: Wait for the licence to be removed
+      ansible.builtin.command:
+        cmd: mdatp health --field licensed
+      register: __mde_linux_offboard_result
+      changed_when: false
+      failed_when: __mde_linux_offboard_result.stdout | default('') | trim == 'true'
+      check_mode: false
+      retries: "{{ mde_linux_health_retries }}"
+      delay: "{{ mde_linux_health_delay }}"
+      until: __mde_linux_offboard_result.stdout | default('') | trim != 'true'
+      when:
+        - __mde_linux_offboard_licensed.stdout | default('') | trim == 'true'
+        - not ansible_check_mode

@@ -1,0 +1,93 @@
+---
+# The same checks as Microsoft's post-installation playbook, without the EICAR download.
+
+- name: Wait for the device to be licensed
+  ansible.builtin.command:
+    cmd: mdatp health --field licensed
+  register: __mde_linux_verify_licensed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  retries: "{{ mde_linux_health_retries }}"
+  delay: "{{ mde_linux_health_delay }}"
+  until: __mde_linux_verify_licensed.stdout | default('') | trim == 'true'
+
+- name: Wait for the agent to report healthy
+  ansible.builtin.command:
+    cmd: mdatp health --field healthy
+  register: __mde_linux_verify_healthy
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  retries: "{{ mde_linux_health_retries }}"
+  delay: "{{ mde_linux_health_delay }}"
+  until: __mde_linux_verify_healthy.stdout | default('') | trim == 'true'
+
+# The checks use the documented --field names. The full JSON report is kept as a fact only,
+# because its key names are not documented.
+- name: Read the organisation and any health issues
+  ansible.builtin.command:
+    cmd: mdatp health --field {{ item }}
+  register: __mde_linux_verify_fields
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  loop:
+    - org_id
+    - health_issues
+
+- name: Read the full health report
+  ansible.builtin.command:
+    cmd: mdatp health --output json
+  register: __mde_linux_verify_health
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Keep the health report as a fact
+  ansible.builtin.set_fact:
+    mde_linux_health: "{{ __mde_linux_verify_health.stdout | from_json if __mde_linux_verify_health.stdout is match('\\s*\\{') else {} }}"
+    __mde_linux_verify_org_id: "{{ __mde_linux_verify_fields.results[0].stdout | default('') | trim | replace('\"', '') }}"
+    __mde_linux_verify_issues: "{{ __mde_linux_verify_fields.results[1].stdout | default('') | trim }}"
+
+- name: Check the device is onboarded and healthy
+  ansible.builtin.assert:
+    that:
+      - __mde_linux_verify_licensed.stdout | default('') | trim == 'true'
+      - __mde_linux_verify_healthy.stdout | default('') | trim == 'true'
+    fail_msg: >-
+      Defender for Endpoint is not onboarded and healthy. licensed:
+      {{ __mde_linux_verify_licensed.stdout | default('') | trim }}, healthy:
+      {{ __mde_linux_verify_healthy.stdout | default('') | trim }}, health issues:
+      {{ __mde_linux_verify_issues or 'none reported' }}. See
+      https://learn.microsoft.com/en-us/defender-endpoint/health-status
+    quiet: true
+
+- name: Check the organisation
+  ansible.builtin.assert:
+    that:
+      - __mde_linux_verify_org_id == mde_linux_expected_org_id
+    fail_msg: >-
+      The device is onboarded to organisation {{ __mde_linux_verify_org_id or 'unknown' }},
+      expected {{ mde_linux_expected_org_id }}.
+    quiet: true
+  when: mde_linux_expected_org_id | length > 0
+
+- name: Run the cloud connectivity test
+  ansible.builtin.command:
+    cmd: mdatp connectivity test
+  register: __mde_linux_verify_connectivity
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: mde_linux_verify_connectivity | bool
+
+- name: Check the connectivity test passed
+  ansible.builtin.assert:
+    that:
+      - __mde_linux_verify_connectivity.rc == 0
+    fail_msg: >-
+      mdatp connectivity test failed: {{ __mde_linux_verify_connectivity.stdout_lines | default([]) | select('search', 'FAIL|ERROR') | join('; ') }}.
+      See https://learn.microsoft.com/en-us/defender-endpoint/linux-support-connectivity
+    quiet: true
+  when: mde_linux_verify_connectivity | bool

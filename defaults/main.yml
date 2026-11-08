@@ -1,0 +1,55 @@
+---
+# Every variable is described in README.md and validated by meta/argument_specs.yml.
+
+# present installs, configures and onboards Defender for Endpoint. offboarded offboards the
+# device and leaves the agent installed. absent offboards the device (when an offboarding
+# package is given) and removes the agent.
+mde_linux_state: present
+
+# Release channel: prod, insiders-slow or insiders-fast. Microsoft does not support switching
+# channel in place: remove the agent (mde_linux_state: absent) before changing it.
+mde_linux_channel: prod
+
+# Package
+mde_linux_package_state: present
+mde_linux_version: ""
+
+# Repository. Set mde_linux_manage_repository to false when the host already gets mdatp from
+# a local mirror, Red Hat Satellite or similar.
+mde_linux_manage_repository: true
+mde_linux_repository_url: https://packages.microsoft.com
+mde_linux_repository_path: ""
+mde_linux_remove_repository: false
+
+# Onboarding. Give the onboarding package from the Defender portal ("Your preferred Linux
+# configuration management tool") as a file on the control node, or as its content.
+mde_linux_onboard: true
+mde_linux_onboarding_file: ""
+mde_linux_onboarding_content: ""
+mde_linux_expected_org_id: ""
+mde_linux_force_onboarding: false
+
+# Offboarding package (mdatp_offboard.json), used by the offboarded and absent states.
+mde_linux_offboarding_file: ""
+mde_linux_offboarding_content: ""
+
+# Managed configuration profile (mdatp_managed.json), in Microsoft's schema. replace writes
+# mde_linux_managed_config as the whole file. merge deep-merges it into the file already on
+# the host. Dotted paths in mde_linux_managed_config_remove are deleted afterwards. With
+# nothing set, the file is left alone (for example when Security Settings Management in the
+# Defender portal applies the policy).
+mde_linux_managed_config: {}
+mde_linux_managed_config_mode: replace
+mde_linux_managed_config_list_merge: replace
+mde_linux_managed_config_remove: []
+mde_linux_restart_on_managed_config_change: false
+
+# Checks after onboarding.
+mde_linux_verify: true
+mde_linux_verify_connectivity: true
+mde_linux_health_retries: 18
+mde_linux_health_delay: 10
+
+# absent only: also delete /etc/opt/microsoft/mdatp, /var/opt/microsoft/mdatp and
+# /var/log/microsoft/mdatp after the package is removed.
+mde_linux_remove_data: false

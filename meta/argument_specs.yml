@@ -1,0 +1,149 @@
+---
+argument_specs:
+  main:
+    short_description: Install, configure, onboard and offboard Microsoft Defender for Endpoint on Linux
+    description:
+      - Adds the signed packages.microsoft.com repository, installs the mdatp package, writes
+        the managed configuration profile, onboards the device with the onboarding package from
+        the Defender portal and checks it is licensed, healthy and connected.
+      - The offboarded state offboards the device and keeps the agent. The absent state
+        offboards it (when an offboarding package is given) and removes the agent.
+    author:
+      - Craig Thacker
+    options:
+      mde_linux_state:
+        description: Whether Defender for Endpoint is installed and onboarded, offboarded, or removed.
+        type: str
+        choices: [present, offboarded, absent]
+        default: present
+      mde_linux_channel:
+        description:
+          - Release channel. Switching channel needs the agent removed first.
+        type: str
+        choices: [prod, insiders-slow, insiders-fast]
+        default: prod
+      mde_linux_package_state:
+        description: present installs the package if missing. latest also upgrades it.
+        type: str
+        choices: [present, latest]
+        default: present
+      mde_linux_version:
+        description:
+          - Exact mdatp version to install, for example 101.25092.0005. Empty installs whichever
+            version the repository offers. Insiders builds carry a suffix, so copy the version
+            exactly as the package manager lists it.
+        type: str
+        default: ""
+      mde_linux_manage_repository:
+        description: Add the packages.microsoft.com repository. Set to false when the host already has a repository that serves mdatp.
+        type: bool
+        default: true
+      mde_linux_repository_url:
+        description: Base URL of packages.microsoft.com, or of a mirror with the same layout.
+        type: str
+        default: https://packages.microsoft.com
+      mde_linux_repository_path:
+        description:
+          - Repository path under the base URL, for example rhel/9 or ubuntu/24.04. Empty works it
+            out from the host's facts.
+        type: str
+        default: ""
+      mde_linux_remove_repository:
+        description: With state absent, also remove the repository definition the role added.
+        type: bool
+        default: false
+      mde_linux_onboard:
+        description: Onboard the device. Set to false to install the agent only, for example in a golden image.
+        type: bool
+        default: true
+      mde_linux_onboarding_file:
+        description:
+          - Path on the control node to mdatp_onboard.json from the Defender portal. Can be
+            encrypted with Ansible Vault.
+        type: path
+        default: ""
+      mde_linux_onboarding_content:
+        description: The content of mdatp_onboard.json, for example from a secret store. Use instead of mde_linux_onboarding_file.
+        type: str
+        default: ""
+      mde_linux_expected_org_id:
+        description: Organisation ID the device must be onboarded to. Empty skips the check.
+        type: str
+        default: ""
+      mde_linux_force_onboarding:
+        description: Copy the onboarding package even when the device is already licensed.
+        type: bool
+        default: false
+      mde_linux_offboarding_file:
+        description: Path on the control node to mdatp_offboard.json from the Defender portal. Can be encrypted with Ansible Vault.
+        type: path
+        default: ""
+      mde_linux_offboarding_content:
+        description: The content of mdatp_offboard.json. Use instead of mde_linux_offboarding_file.
+        type: str
+        default: ""
+      mde_linux_managed_config: &managed_config
+        description:
+          - Settings for mdatp_managed.json, in Microsoft's schema. With this and
+            mde_linux_managed_config_remove both empty, the file is left alone.
+        type: dict
+        default: {}
+      mde_linux_managed_config_mode: &managed_config_mode
+        description:
+          - replace writes mde_linux_managed_config as the whole file. merge deep-merges it
+            into the file already on the host and keeps every other setting.
+        type: str
+        choices: [replace, merge]
+        default: replace
+      mde_linux_managed_config_list_merge: &managed_config_list_merge
+        description:
+          - How lists are merged in merge mode, as the list_merge option of the combine filter.
+            replace swaps the list for the new one. append_rp adds new items and keeps the rest.
+        type: str
+        choices: [replace, keep, append, prepend, append_rp, prepend_rp]
+        default: replace
+      mde_linux_managed_config_remove: &managed_config_remove
+        description:
+          - Dotted paths to delete from the profile, for example cloudService.proxy. Applied
+            after replace or merge.
+        type: list
+        elements: str
+        default: []
+      mde_linux_restart_on_managed_config_change: &restart_on_change
+        description: Restart mdatp when mdatp_managed.json changes. Only the diagnostic level and log rotation settings need it.
+        type: bool
+        default: false
+      mde_linux_verify:
+        description: After onboarding, wait for the device to be licensed and healthy.
+        type: bool
+        default: true
+      mde_linux_verify_connectivity:
+        description: Run mdatp connectivity test as part of the checks.
+        type: bool
+        default: true
+      mde_linux_health_retries:
+        description: How many times to poll mdatp health before giving up.
+        type: int
+        default: 18
+      mde_linux_health_delay:
+        description: Seconds between mdatp health polls.
+        type: int
+        default: 10
+      mde_linux_remove_data:
+        description: With state absent, also delete the agent's configuration, data and log directories.
+        type: bool
+        default: false
+
+  managed_config:
+    short_description: Change only mdatp_managed.json
+    description:
+      - Writes or edits the managed configuration profile without installing, onboarding or
+        checking anything. Use with include_role and tasks_from managed_config.
+    author:
+      - Craig Thacker
+    options:
+      mde_linux_managed_config: *managed_config
+      mde_linux_managed_config_mode: *managed_config_mode
+      mde_linux_managed_config_list_merge: *managed_config_list_merge
+      mde_linux_managed_config_remove: *managed_config_remove
+      mde_linux_restart_on_managed_config_change: *restart_on_change

@@ -1,0 +1,11 @@
+---
+# Installs the agent, then removes it with state absent, and checks nothing is left behind.
+# No idempotence step: every converge installs and removes again.
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - verify
+    - destroy

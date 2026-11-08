@@ -1,0 +1,25 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  tasks:
+    - name: Merge settings into the existing profile and delete the proxy
+      ansible.builtin.include_role:
+        name: libre_devops.mde_linux
+        tasks_from: managed_config
+      vars:
+        mde_linux_managed_config_mode: merge
+        mde_linux_managed_config_list_merge: append_rp
+        mde_linux_managed_config:
+          antivirusEngine:
+            enforcementLevel: real_time
+            exclusions:
+              - $type: excludedPath
+                isDirectory: true
+                path: /opt/added
+          edr:
+            tags:
+              - key: GROUP
+                value: molecule
+        mde_linux_managed_config_remove:
+          - cloudService.proxy

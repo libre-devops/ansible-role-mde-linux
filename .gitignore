@@ -1,0 +1,22 @@
+# Python and tooling
+.venv/
+__pycache__/
+.cache/
+.ansible/
+*.retry
+
+# Editors
+.idea/
+.vscode/
+
+# Never commit onboarding or offboarding packages, inventories or vault passwords. The
+# Molecule fixtures are dummies and are allowed explicitly.
+mdatp_onboard.json
+mdatp_offboard.json
+!molecule/fixtures/mdatp_onboard.json
+!molecule/fixtures/mdatp_offboard.json
+WindowsDefenderATP*Package*.zip
+MicrosoftDefenderATP*.py
+inventory.ini
+inventory.yml
+.vault_pass*

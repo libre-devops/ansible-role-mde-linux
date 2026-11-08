@@ -1,0 +1,51 @@
+---
+- name: Check the variables and the host
+  ansible.builtin.include_tasks: assert.yml
+
+- name: Install, configure and onboard Defender for Endpoint
+  when: mde_linux_state == 'present'
+  block:
+    - name: Configure the packages.microsoft.com repository
+      ansible.builtin.include_tasks: repository.yml
+      when: mde_linux_manage_repository | bool
+
+    - name: Install the mdatp package
+      ansible.builtin.include_tasks: install.yml
+
+    - name: Write the managed configuration profile
+      ansible.builtin.include_tasks: managed_config.yml
+      when: (mde_linux_managed_config | length > 0) or (mde_linux_managed_config_remove | length > 0)
+
+    - name: Onboard the device
+      ansible.builtin.include_tasks: onboard.yml
+      when: mde_linux_onboard | bool
+
+    - name: Check health and connectivity
+      ansible.builtin.include_tasks: verify.yml
+      when:
+        - mde_linux_onboard | bool
+        - mde_linux_verify | bool
+
+- name: Offboard the device and keep the agent
+  ansible.builtin.include_tasks: offboard.yml
+  when: mde_linux_state == 'offboarded'
+
+- name: Offboard the device and remove the agent
+  when: mde_linux_state == 'absent'
+  block:
+    - name: Offboard the device
+      ansible.builtin.include_tasks: offboard.yml
+      when: (mde_linux_offboarding_file | length > 0) or (mde_linux_offboarding_content | length > 0)
+
+    - name: Say the device is removed without offboarding
+      ansible.builtin.debug:
+        msg: >-
+          No offboarding package was given, so the agent is removed without offboarding. The
+          device stays in the Defender portal and its sensor health turns inactive after seven
+          days.
+      when:
+        - mde_linux_offboarding_file | length == 0
+        - mde_linux_offboarding_content | length == 0
+
+    - name: Remove the agent
+      ansible.builtin.include_tasks: uninstall.yml

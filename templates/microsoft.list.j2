@@ -1,0 +1,4 @@
+{{ ansible_managed | comment }}
+# The same line as Microsoft's config/{{ __mde_linux_repository_path }}/{{ __mde_linux_repo_channel }}.list, so other roles or a
+# manual setup update this file instead of adding a second source with a conflicting key.
+deb [arch=amd64,arm64,armhf signed-by={{ __mde_linux_apt_keyring }}] {{ mde_linux_repository_url | regex_replace('/+$', '') }}/{{ __mde_linux_repository_path }}/prod {{ ansible_facts['distribution_release'] if __mde_linux_repo_channel == 'prod' else __mde_linux_repo_channel }} main
