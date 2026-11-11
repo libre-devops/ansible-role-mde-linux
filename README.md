@@ -53,7 +53,7 @@ Microsoft recommends its own deployment tool or installer script for most estate
 |---|---|
 | Control node | `ansible-core` 2.16 or later. |
 | Collections | `community.general`, for SUSE hosts only (`ansible.builtin.package` hands over to `community.general.zypper` there). The `ansible` package already includes it. |
-| Managed nodes | A [supported distribution](#supported-platforms) with systemd, on x86_64 or aarch64, and a Python that your `ansible-core` supports. RHEL 8 and SLES 15 ship Python 3.6, which ansible-core 2.17 and later cannot use: see [Python on managed nodes](./docs/using-without-galaxy.md#on-managed-nodes). |
+| Managed nodes | A [supported distribution](#supported-platforms) with systemd, on x86_64 or aarch64, and a Python that your `ansible-core` supports. RHEL 8 and SLES 15 ship Python 3.6, which ansible-core 2.17 and later cannot use: run [libre_devops.python](https://github.com/libre-devops/ansible-role-python) first, as in [RHEL 8 hosts with only Python 3.6](#rhel-8-hosts-with-only-python-36). |
 | Privileges | `become: true`. The role installs packages and writes under `/etc`. |
 | Network | HTTPS to `packages.microsoft.com` (or your mirror) and to the Defender for Endpoint service URLs ([Microsoft Learn: Configure your network environment](https://learn.microsoft.com/en-us/defender-endpoint/configure-environment)). |
 | Licence | Defender for Endpoint (or Defender for Servers) licences, and the onboarding package from your tenant. |
@@ -312,6 +312,44 @@ When it is first onboarded, the agent downloads the latest security intelligence
 
 ## Examples
 
+### RHEL 8 hosts with only Python 3.6
+
+RHEL 8 ships Python 3.6, which ansible-core 2.17 and later cannot run modules with, so every task fails before this role even starts (see [Troubleshooting](#troubleshooting)). Put [libre_devops.python](https://github.com/libre-devops/ansible-role-python) in front of this role, in the same play. It installs `python3.12` from AppStream, through your Satellite or mirror like any other package, points Ansible at it and gathers facts, and then this role runs as usual.
+
+Install both, for example from GitHub:
+
+```yaml
+# requirements.yml
+roles:
+  - name: libre_devops.python
+    src: https://github.com/libre-devops/ansible-role-python.git
+    scm: git
+    version: 1.0.0
+  - name: libre_devops.mde_linux
+    src: https://github.com/libre-devops/ansible-role-mde-linux.git
+    scm: git
+    version: 1.0.0
+```
+
+Then chain them:
+
+```yaml
+- name: Defender for Endpoint on RHEL 8
+  hosts: rhel8
+  become: true
+  # Gathering facts would fail on Python 3.6. libre_devops.python gathers them once it has
+  # installed Python 3.12, before libre_devops.mde_linux needs them.
+  gather_facts: false
+  roles:
+    - role: libre_devops.python
+    - role: libre_devops.mde_linux
+      vars:
+        mde_linux_onboarding_file: files/mdatp_onboard.json   # encrypted with ansible-vault
+        mde_linux_expected_org_id: 00000000-0000-0000-0000-000000000000
+```
+
+Every later play in the same run uses the same Python. To skip `libre_devops.python` on later runs, set `ansible_python_interpreter: /usr/bin/python3.12` in `group_vars/rhel8.yml` once the hosts have it. For hosts with no repositories, `libre_devops.python` can push the packages from the control node instead (`python_bootstrap_source: files`), and SLES 15 gets `python311` the same way. See its README for every option.
+
 ### Install only, for a golden image
 
 ```yaml
@@ -360,7 +398,7 @@ Without an offboarding package the agent is removed without offboarding, and the
 
 | Symptom | What to check |
 |---|---|
-| `The module interpreter '/usr/bin/python3' was not found` or `Module result deserialization failed`, on the first task | The host only has Python 3.6 (RHEL 8, SLES 15), which ansible-core 2.17 and later cannot use. Every module fails, not only this role's. See [Python on managed nodes](./docs/using-without-galaxy.md#on-managed-nodes). |
+| `The module interpreter '/usr/bin/python3' was not found` or `Module result deserialization failed`, on the first task | The host only has Python 3.6 (RHEL 8, SLES 15), which ansible-core 2.17 and later cannot use. Every module fails, not only this role's. Run [libre_devops.python](https://github.com/libre-devops/ansible-role-python) first in the play, as in [RHEL 8 hosts with only Python 3.6](#rhel-8-hosts-with-only-python-36). |
 | `Cannot determine license status` | The `mdatp` daemon is not running. Check `systemctl status mdatp` and `/var/log/microsoft/mdatp/`. |
 | The licence check times out | The onboarding package is from the wrong tenant or out of date, or the host cannot reach the Defender URLs. Run `mdatp health --field health_issues` and `mdatp connectivity test` on the host. |
 | `This device is onboarded to organisation ...` | The device belongs to another tenant. Offboard it with that tenant's package, then run the role again. |
