@@ -358,6 +358,38 @@ mde_linux_onboard: false
 
 Microsoft's golden image guidance says to copy the onboarding file only while the `mdatp` service is stopped ([Microsoft Learn: Golden images](https://learn.microsoft.com/en-us/defender-endpoint/linux-deploy-defender-for-endpoint-using-golden-images)). Onboard each clone after it boots, with a second run of the role.
 
+### Install from package files, without Microsoft's repository
+
+For hosts that cannot reach `packages.microsoft.com`, or a quick test of a particular build, push the `mdatp` package from the control node with [libre_devops.standalone_package_installer](https://github.com/libre-devops/ansible-role-standalone-package-installer) and turn this role's repository management off. The package's signature is checked against Microsoft's keys, which this role ships in `files/`, and dependencies come from the hosts' own repositories (the distribution's, Satellite or a mirror):
+
+```yaml
+- name: Defender for Endpoint from package files
+  hosts: rhel9
+  become: true
+  roles:
+    - role: libre_devops.standalone_package_installer
+      vars:
+        standalone_package_installer_files:
+          - files/mde/mdatp-*.x86_64.rpm
+        standalone_package_installer_gpg_keys:
+          - files/keys/microsoft.asc
+          - files/keys/microsoft-2025.asc
+    - role: libre_devops.mde_linux
+      vars:
+        mde_linux_manage_repository: false
+        mde_linux_onboarding_file: files/mdatp_onboard.json   # encrypted with ansible-vault
+        mde_linux_expected_org_id: 00000000-0000-0000-0000-000000000000
+```
+
+Download the package on a machine that can reach the repository, with the same release as the hosts:
+
+```bash
+dnf --repofrompath=ms,https://packages.microsoft.com/rhel/9/prod --setopt=ms.gpgcheck=0 \
+  install --downloadonly --downloaddir=files/mde mdatp
+```
+
+The package installer pushes nothing when the same version is installed already, so later runs only configure. On 11 November 2026 this ran on AlmaLinux 9 with `mdatp` 101.26101.0000 and `mde_linux_onboard: false`: the agent installed with its signature checked and no Microsoft repository, and a second run changed nothing. For anything you keep, prefer a mirror of the repository with `mde_linux_repository_url`.
+
 ### Passive mode alongside another antivirus product
 
 ```yaml
