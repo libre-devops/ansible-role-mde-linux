@@ -53,7 +53,7 @@ Microsoft recommends its own deployment tool or installer script for most estate
 |---|---|
 | Control node | `ansible-core` 2.16 or later. |
 | Collections | `community.general`, for SUSE hosts only (`ansible.builtin.package` hands over to `community.general.zypper` there). The `ansible` package already includes it. |
-| Managed nodes | A [supported distribution](#supported-platforms) with systemd, on x86_64 or aarch64, and a Python that your `ansible-core` supports. SLES 15 ships Python 3.6, so install `python311` and set `ansible_python_interpreter: /usr/bin/python3.11`. |
+| Managed nodes | A [supported distribution](#supported-platforms) with systemd, on x86_64 or aarch64, and a Python that your `ansible-core` supports. RHEL 8 and SLES 15 ship Python 3.6, which ansible-core 2.17 and later cannot use: see [Python on managed nodes](./docs/using-without-galaxy.md#on-managed-nodes). |
 | Privileges | `become: true`. The role installs packages and writes under `/etc`. |
 | Network | HTTPS to `packages.microsoft.com` (or your mirror) and to the Defender for Endpoint service URLs ([Microsoft Learn: Configure your network environment](https://learn.microsoft.com/en-us/defender-endpoint/configure-environment)). |
 | Licence | Defender for Endpoint (or Defender for Servers) licences, and the onboarding package from your tenant. |
@@ -94,6 +94,8 @@ roles:
     scm: git
     version: 1.0.0
 ```
+
+Without Galaxy, or to keep a copy inside your organisation, see [Using the role without Galaxy](./docs/using-without-galaxy.md). It covers git, release archives, requirements files that point at your own servers, AWX and Automation Controller, execution environments, and managed nodes with Python 3.6 such as RHEL 8.
 
 ## Quick start
 
@@ -358,6 +360,7 @@ Without an offboarding package the agent is removed without offboarding, and the
 
 | Symptom | What to check |
 |---|---|
+| `The module interpreter '/usr/bin/python3' was not found` or `Module result deserialization failed`, on the first task | The host only has Python 3.6 (RHEL 8, SLES 15), which ansible-core 2.17 and later cannot use. Every module fails, not only this role's. See [Python on managed nodes](./docs/using-without-galaxy.md#on-managed-nodes). |
 | `Cannot determine license status` | The `mdatp` daemon is not running. Check `systemctl status mdatp` and `/var/log/microsoft/mdatp/`. |
 | The licence check times out | The onboarding package is from the wrong tenant or out of date, or the host cannot reach the Defender URLs. Run `mdatp health --field health_issues` and `mdatp connectivity test` on the host. |
 | `This device is onboarded to organisation ...` | The device belongs to another tenant. Offboard it with that tenant's package, then run the role again. |
