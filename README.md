@@ -13,7 +13,7 @@ Installs, configures, onboards and offboards Microsoft Defender for Endpoint (`m
 
 [![CI](https://github.com/libre-devops/ansible-role-mde-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/libre-devops/ansible-role-mde-linux/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/libre-devops/ansible-role-mde-linux?sort=semver&label=release)](https://github.com/libre-devops/ansible-role-mde-linux/releases/latest)
-[![Galaxy](https://img.shields.io/badge/galaxy-libre__devops.mde__linux-EE0000?logo=ansible&logoColor=white)](https://galaxy.ansible.com/ui/standalone/roles/libre_devops/mde_linux/)
+[![Galaxy](https://img.shields.io/badge/galaxy-libre__devops.mde__linux-EE0000?logo=ansible&logoColor=white)](https://galaxy.ansible.com/ui/standalone/roles/libre_devops/mde_linux/documentation/)
 [![Licence](https://img.shields.io/github/license/libre-devops/ansible-role-mde-linux)](./LICENSE)
 
 ---
