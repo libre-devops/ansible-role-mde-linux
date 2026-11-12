@@ -70,6 +70,12 @@ argument_specs:
         description: Organisation ID the device must be onboarded to. Empty skips the check.
         type: str
         default: ""
+      mde_linux_check_onboarding_org_id:
+        description:
+          - Before anything is installed, read the organisation ID inside the onboarding package
+            and stop unless it is mde_linux_expected_org_id, which must then be set.
+        type: bool
+        default: false
       mde_linux_force_onboarding:
         description: Copy the onboarding package even when the device is already licensed.
         type: bool
@@ -85,13 +91,21 @@ argument_specs:
       mde_linux_managed_config: &managed_config
         description:
           - Settings for mdatp_managed.json, in Microsoft's schema. With this and
-            mde_linux_managed_config_remove both empty, the file is left alone.
+            mde_linux_managed_config_file and mde_linux_managed_config_remove all empty, the
+            file is left alone.
         type: dict
         default: {}
+      mde_linux_managed_config_file: &managed_config_file
+        description:
+          - Path on the control node to a JSON or YAML file of settings for mdatp_managed.json,
+            such as an existing mdatp_managed.json. Use instead of mde_linux_managed_config.
+            Files ending .yml or .yaml are read as YAML, others as JSON.
+        type: path
+        default: ""
       mde_linux_managed_config_mode: &managed_config_mode
         description:
-          - replace writes mde_linux_managed_config as the whole file. merge deep-merges it
-            into the file already on the host and keeps every other setting.
+          - replace writes the settings as the whole file. merge deep-merges them into the file
+            already on the host and keeps every other setting.
         type: str
         choices: [replace, merge]
         default: replace
@@ -143,6 +157,7 @@ argument_specs:
       - Craig Thacker
     options:
       mde_linux_managed_config: *managed_config
+      mde_linux_managed_config_file: *managed_config_file
       mde_linux_managed_config_mode: *managed_config_mode
       mde_linux_managed_config_list_merge: *managed_config_list_merge
       mde_linux_managed_config_remove: *managed_config_remove

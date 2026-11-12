@@ -1,0 +1,4 @@
+---
+# Merged in by the managed_config scenario, to test settings read from a YAML file.
+cloudService:
+  automaticSampleSubmissionConsent: safe

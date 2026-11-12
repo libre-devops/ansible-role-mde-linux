@@ -6,6 +6,27 @@ __mde_linux_onboarding_path: "{{ __mde_linux_config_dir }}/mdatp_onboard.json"
 __mde_linux_offboarding_path: "{{ __mde_linux_config_dir }}/mdatp_offboard.json"
 __mde_linux_managed_config_path: "{{ __mde_linux_config_dir }}/managed/mdatp_managed.json"
 
+# The onboarding package as text, read on the control node (Ansible Vault files are decrypted).
+__mde_linux_onboarding_text: >-
+  {{ lookup('ansible.builtin.file', mde_linux_onboarding_file)
+     if mde_linux_onboarding_file | length > 0 else mde_linux_onboarding_content }}
+
+# Microsoft's mdatp_onboard.json nests JSON in strings: onboardingInfo holds a JSON document
+# whose body holds another, and that one has the orgId.
+__mde_linux_onboarding_org_id: >-
+  {%- set package = __mde_linux_onboarding_text if __mde_linux_onboarding_text is mapping
+                    else __mde_linux_onboarding_text | from_json -%}
+  {{ ((package.onboardingInfo | from_json).body | from_json).orgId }}
+
+# The settings for mdatp_managed.json: mde_linux_managed_config, or the file named in
+# mde_linux_managed_config_file, read on the control node as YAML (.yml, .yaml) or JSON.
+__mde_linux_managed_config_text: "{{ lookup('ansible.builtin.file', mde_linux_managed_config_file) }}"
+__mde_linux_managed_config: >-
+  {{ mde_linux_managed_config if mde_linux_managed_config_file | length == 0
+     else (__mde_linux_managed_config_text | from_yaml
+           if (mde_linux_managed_config_file | splitext | last | lower) in ['.yml', '.yaml']
+           else __mde_linux_managed_config_text | from_json) }}
+
 __mde_linux_data_dirs:
   - /etc/opt/microsoft/mdatp
   - /var/opt/microsoft/mdatp

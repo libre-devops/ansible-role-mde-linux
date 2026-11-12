@@ -10,9 +10,9 @@
 {%- endif -%}
 {%- endmacro -%}
 {%- if mde_linux_managed_config_mode == 'merge' -%}
-{%- set base = __mde_linux_managed_existing | combine(mde_linux_managed_config, recursive=true, list_merge=mde_linux_managed_config_list_merge) -%}
+{%- set base = __mde_linux_managed_existing | combine(__mde_linux_managed_config, recursive=true, list_merge=mde_linux_managed_config_list_merge) -%}
 {%- else -%}
-{%- set base = mde_linux_managed_config -%}
+{%- set base = __mde_linux_managed_config -%}
 {%- endif -%}
 {%- set profile = namespace(data=base) -%}
 {%- for path in mde_linux_managed_config_remove -%}

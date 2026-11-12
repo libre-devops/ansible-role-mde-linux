@@ -1,22 +1,42 @@
 ---
+- name: Check a package for another organisation is refused before anything is installed
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Run the role expecting a different organisation
+      block:
+        - name: Run the role
+          ansible.builtin.include_role:
+            name: libre_devops.mde_linux
+          vars:
+            mde_linux_onboarding_file: "{{ playbook_dir }}/../fixtures/mdatp_onboard.json"
+            mde_linux_check_onboarding_org_id: true
+            mde_linux_expected_org_id: 99999999-8888-4777-8666-555555555555
+
+        - name: Fail, because the role did not stop
+          ansible.builtin.fail:
+            msg: The role accepted an onboarding package for another organisation.
+      rescue:
+        - name: Check the organisation check stopped it
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == 'Check the organisation ID matches'
+              - "'11111111-2222-4333-8444-555555555555' in ansible_failed_result.msg"
+            quiet: true
+
 - name: Converge
   hosts: all
   become: true
   vars:
     mde_linux_onboarding_file: "{{ playbook_dir }}/../fixtures/mdatp_onboard.json"
+    mde_linux_check_onboarding_org_id: true
+    mde_linux_expected_org_id: 11111111-2222-4333-8444-555555555555
     # The agent cannot license itself in a container: skip the checks, and poll briefly.
     mde_linux_verify: false
     mde_linux_health_retries: 1
     mde_linux_health_delay: 1
-    mde_linux_managed_config:
-      antivirusEngine:
-        enforcementLevel: real_time
-      cloudService:
-        enabled: true
-        automaticDefinitionUpdateEnabled: true
-      edr:
-        tags:
-          - key: GROUP
-            value: molecule
+    # The profile from a file, as an existing mdatp_managed.json would be given.
+    mde_linux_managed_config_file: "{{ playbook_dir }}/../fixtures/mdatp_managed.json"
   roles:
     - role: libre_devops.mde_linux

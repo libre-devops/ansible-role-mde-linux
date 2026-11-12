@@ -13,12 +13,13 @@
       ansible.builtin.set_fact:
         __verify_profile: "{{ __verify_managed.content | b64decode | from_json }}"
 
-    - name: Check the merge kept, changed, added and deleted the right settings
+    - name: Check the merges kept, changed, added and deleted the right settings
       ansible.builtin.assert:
         that:
           - __verify_profile.antivirusEngine.enforcementLevel == 'real_time'
           - __verify_profile.antivirusEngine.exclusions | map(attribute='path') | list == ['/opt/existing', '/opt/added']
           - __verify_profile.cloudService.enabled
+          - __verify_profile.cloudService.automaticSampleSubmissionConsent == 'safe'
           - "'proxy' not in __verify_profile.cloudService"
           - "__verify_profile.edr.tags == [{'key': 'GROUP', 'value': 'molecule'}]"
         quiet: true

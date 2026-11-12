@@ -42,6 +42,48 @@
     - mde_linux_state == 'present'
     - mde_linux_onboard | bool
 
+# Optional: read the organisation inside the package on the control node, before anything is
+# installed, so a package for the wrong tenant never reaches the host.
+- name: Check the onboarding package is for the expected organisation
+  when:
+    - mde_linux_state == 'present'
+    - mde_linux_onboard | bool
+    - mde_linux_check_onboarding_org_id | bool
+  block:
+    - name: Check an expected organisation is set
+      ansible.builtin.assert:
+        that:
+          - mde_linux_expected_org_id | length > 0
+        fail_msg: >-
+          mde_linux_check_onboarding_org_id needs mde_linux_expected_org_id, the organisation ID
+          the onboarding package must be for.
+        quiet: true
+
+    - name: Read the organisation ID in the onboarding package
+      block:
+        - name: Parse the onboarding package
+          ansible.builtin.set_fact:
+            __mde_linux_package_org_id: "{{ __mde_linux_onboarding_org_id | trim }}"
+          no_log: true
+      rescue:
+        - name: Stop when the onboarding package cannot be read
+          ansible.builtin.fail:
+            msg: >-
+              No organisation ID could be read from the onboarding package, so it is not in the
+              layout of Microsoft's mdatp_onboard.json (onboardingInfo, then body, then orgId).
+              Download it again from the Defender portal, or set
+              mde_linux_check_onboarding_org_id to false.
+
+    - name: Check the organisation ID matches
+      ansible.builtin.assert:
+        that:
+          - __mde_linux_package_org_id | lower == mde_linux_expected_org_id | lower
+        fail_msg: >-
+          The onboarding package is for organisation {{ __mde_linux_package_org_id }}, not
+          {{ mde_linux_expected_org_id }}. Download the package for the right tenant from the
+          Defender portal.
+        quiet: true
+
 - name: Check an offboarding package is given
   ansible.builtin.assert:
     that:

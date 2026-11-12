@@ -14,7 +14,10 @@
 
     - name: Write the managed configuration profile
       ansible.builtin.include_tasks: managed_config.yml
-      when: (mde_linux_managed_config | length > 0) or (mde_linux_managed_config_remove | length > 0)
+      when: >-
+        (mde_linux_managed_config | length > 0)
+        or (mde_linux_managed_config_file | length > 0)
+        or (mde_linux_managed_config_remove | length > 0)
 
     - name: Onboard the device
       ansible.builtin.include_tasks: onboard.yml

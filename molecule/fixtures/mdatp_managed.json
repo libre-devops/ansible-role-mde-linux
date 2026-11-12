@@ -1,0 +1,17 @@
+{
+  "antivirusEngine": {
+    "enforcementLevel": "real_time"
+  },
+  "cloudService": {
+    "enabled": true,
+    "automaticDefinitionUpdateEnabled": true
+  },
+  "edr": {
+    "tags": [
+      {
+        "key": "GROUP",
+        "value": "molecule"
+      }
+    ]
+  }
+}

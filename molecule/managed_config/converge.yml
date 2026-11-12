@@ -23,3 +23,16 @@
                 value: molecule
         mde_linux_managed_config_remove:
           - cloudService.proxy
+
+- name: Merge more settings from a YAML file
+  hosts: all
+  become: true
+  tasks:
+    - name: Merge the file into the profile
+      ansible.builtin.include_role:
+        name: libre_devops.mde_linux
+        tasks_from: managed_config
+      vars:
+        mde_linux_managed_config_mode: merge
+        mde_linux_managed_config_list_merge: append_rp
+        mde_linux_managed_config_file: "{{ playbook_dir }}/../fixtures/mdatp_managed_extra.yml"

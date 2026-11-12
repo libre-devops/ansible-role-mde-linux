@@ -135,6 +135,18 @@ The role only takes the JSON packages. The "Local script" packages (`MicrosoftDe
 
 To find your organisation ID for `mde_linux_expected_org_id`, run `mdatp health --field org_id` on a device that is already onboarded.
 
+### Checking a package is for the right tenant
+
+`mde_linux_expected_org_id` on its own protects devices that are already onboarded: the role stops rather than onboard one that belongs to another organisation. To also check the package itself, set `mde_linux_check_onboarding_org_id: true`. The role then reads the organisation ID inside the package on the control node, before it installs anything, and stops unless it is `mde_linux_expected_org_id`:
+
+```yaml
+mde_linux_onboarding_file: files/mdatp_onboard.json   # encrypted with ansible-vault
+mde_linux_expected_org_id: 00000000-0000-0000-0000-000000000000
+mde_linux_check_onboarding_org_id: true
+```
+
+This catches a package downloaded from the wrong tenant, or a file swapped by mistake, before it reaches a host. It is off by default. The check only reads the package: it never edits it, and the package is never logged.
+
 ## Role variables
 
 Every variable is validated against [`meta/argument_specs.yml`](./meta/argument_specs.yml) when the role starts, so a typo in a choice fails straight away. Defaults are in [`defaults/main.yml`](./defaults/main.yml).
@@ -166,6 +178,7 @@ Every variable is validated against [`meta/argument_specs.yml`](./meta/argument_
 | `mde_linux_onboarding_content` | `""` | The JSON itself. Use instead of the file. |
 | `mde_linux_expected_org_id` | `""` | Organisation the device must belong to. If it is onboarded to another one, the role stops rather than overwrite it. Empty skips the check. |
 | `mde_linux_force_onboarding` | `false` | Copy the onboarding package even when the device is already licensed. |
+| `mde_linux_check_onboarding_org_id` | `false` | Before installing anything, read the organisation ID inside the onboarding package and stop unless it is `mde_linux_expected_org_id`, which must then be set. See [Checking a package is for the right tenant](#checking-a-package-is-for-the-right-tenant). |
 | `mde_linux_offboarding_file` | `""` | Path on the control node to `mdatp_offboard.json`. Can be vaulted. Required for `offboarded`. |
 | `mde_linux_offboarding_content` | `""` | The JSON itself. Use instead of the file. |
 
@@ -174,12 +187,13 @@ Every variable is validated against [`meta/argument_specs.yml`](./meta/argument_
 | Variable | Default | Description |
 |---|---|---|
 | `mde_linux_managed_config` | `{}` | Settings for `mdatp_managed.json`, in [Microsoft's schema](https://learn.microsoft.com/en-us/defender-endpoint/linux-preferences). |
+| `mde_linux_managed_config_file` | `""` | Path on the control node to a JSON or YAML file of those settings, such as an existing `mdatp_managed.json`. Use instead of `mde_linux_managed_config`. Files ending `.yml` or `.yaml` are read as YAML, others as JSON. |
 | `mde_linux_managed_config_mode` | `replace` | `replace` writes the settings as the whole file. `merge` deep-merges them into the file already on the host. |
 | `mde_linux_managed_config_list_merge` | `replace` | How `merge` treats lists, as the `list_merge` option of Ansible's `combine` filter: `replace`, `keep`, `append`, `prepend`, `append_rp` or `prepend_rp`. |
 | `mde_linux_managed_config_remove` | `[]` | Dotted paths to delete afterwards, such as `cloudService.proxy`. |
 | `mde_linux_restart_on_managed_config_change` | `false` | Restart `mdatp` when the file changes. Only the diagnostic level and log rotation settings need a restart. |
 
-With `mde_linux_managed_config` and `mde_linux_managed_config_remove` both empty, the role leaves `mdatp_managed.json` alone.
+With `mde_linux_managed_config`, `mde_linux_managed_config_file` and `mde_linux_managed_config_remove` all empty, the role leaves `mdatp_managed.json` alone.
 
 ### Checks and clean-up
 
@@ -226,6 +240,16 @@ mde_linux_managed_config:
 
 This is Microsoft's recommended starter profile plus a device tag. `GROUP` is the only tag key Microsoft supports in this file, and the role fails on any other key.
 
+### From a file
+
+If you already have an `mdatp_managed.json`, from another tool or Microsoft's examples, give the file instead of the variable:
+
+```yaml
+mde_linux_managed_config_file: files/mdatp_managed.json
+```
+
+The role reads it on the control node and treats its contents exactly as it would `mde_linux_managed_config`, so it works with replace, merge and `mde_linux_managed_config_remove`, and in the `managed_config` entry point. A file ending `.yml` or `.yaml` is read as YAML, which suits settings kept next to the rest of your inventory. Set one of the two, not both.
+
 ### Merge and remove
 
 `merge` keeps whatever is already in the file, for example settings another team or tool wrote, and changes only what you give. Deleting a key needs `mde_linux_managed_config_remove`, because a merge can only add or change.
@@ -243,7 +267,7 @@ mde_linux_managed_config_remove:
   - cloudService.proxy
 ```
 
-With `append_rp`, running this again changes nothing, because the exclusion is already there. To drop an exclusion, give the full list you want with `list_merge: replace`.
+With `append_rp`, running this again changes nothing, because the exclusion is already there. To drop an exclusion, give the full list you want with `list_merge: replace`. Keep each list in one merge: `append_rp` moves the items it adds to the end, so two merges that add to the same list reorder it between them and change the file on every run.
 
 ### Only the managed configuration
 
@@ -461,11 +485,11 @@ You need [uv](https://docs.astral.sh/uv/), [just](https://github.com/casey/just)
 
 | Scenario | What it proves |
 |---|---|
-| `default` | Repository, keys, package, service, `mdatp_managed.json` and the onboarding file, then a second run with no changes. |
+| `default` | A package for another organisation is refused before anything is installed. Then repository, keys, package, service, `mdatp_managed.json` from a JSON file and the onboarding file with its organisation checked, then a second run with no changes. |
 | `remove` | `absent` with an offboarding package, `mde_linux_remove_repository` and `mde_linux_remove_data` leave nothing behind. |
-| `managed_config` | The entry point merges into an existing profile, deletes a key, and changes nothing on a second run. |
+| `managed_config` | The entry point merges into an existing profile, deletes a key, merges more from a YAML file, and changes nothing on a second run. |
 
-Every platform runs systemd as PID 1 in a podman container, built from the vendor's image with `sudo`, Python, and the few packages a normal server install has and the minimal images lack (`libcap2`, `util-linux-systemd`). The RHEL 10 family runs on Rocky 10, because the UBI 10 repositories do not carry the `iptables` package `mdatp` needs. Container names start with `mde-`, so tests of the other Libre DevOps roles can run alongside. The agent cannot license itself in a container, so the scenarios use dummy onboarding and offboarding packages from `molecule/fixtures` and switch the health checks off. Test onboarding, offboarding and the checks against a lab VM onboarded to a test tenant with `just live`.
+Every platform runs systemd as PID 1 in a podman container, built from the vendor's image with `sudo`, Python, and the few packages a normal server install has and the minimal images lack (`libcap2`, `util-linux-systemd`). The RHEL 10 family runs on Rocky 10, because the UBI 10 repositories do not carry the `iptables` package `mdatp` needs. Container names start with `mde-`, so tests of the other Libre DevOps roles can run alongside. The agent cannot license itself in a container, so the scenarios use dummy onboarding and offboarding packages from `molecule/fixtures` (the onboarding one has Microsoft's layout and a made-up organisation ID) and switch the health checks off. Test onboarding, offboarding and the checks against a lab VM onboarded to a test tenant with `just live`.
 
 ## Releasing
 

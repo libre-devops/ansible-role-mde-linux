@@ -6,12 +6,30 @@
 #       name: libre_devops.mde_linux
 #       tasks_from: managed_config
 #
-# replace writes mde_linux_managed_config as the whole file. merge reads the file already on
-# the host and deep-merges mde_linux_managed_config into it, so other settings are kept. In
-# both modes, the dotted paths in mde_linux_managed_config_remove are deleted afterwards.
+# The settings come from mde_linux_managed_config, or from the JSON or YAML file on the
+# control node named in mde_linux_managed_config_file. replace writes them as the whole file.
+# merge reads the file already on the host and deep-merges them into it, so other settings
+# are kept. In both modes, the dotted paths in mde_linux_managed_config_remove are deleted
+# afterwards.
 #
 # Most settings apply without a restart. Microsoft lists the diagnostic level and log
 # rotation settings as the exceptions, so a restart is opt in.
+
+- name: Check the settings come from one place
+  ansible.builtin.assert:
+    that:
+      - not (mde_linux_managed_config | length > 0 and mde_linux_managed_config_file | length > 0)
+    fail_msg: Set mde_linux_managed_config or mde_linux_managed_config_file, not both.
+    quiet: true
+
+- name: Check the settings are a JSON object
+  ansible.builtin.assert:
+    that:
+      - __mde_linux_managed_config is mapping
+    fail_msg: >-
+      {{ mde_linux_managed_config_file }} must hold one JSON or YAML object of settings, in the
+      layout of mdatp_managed.json.
+    quiet: true
 
 - name: Read the current mdatp_managed.json
   ansible.builtin.slurp:
