@@ -4,6 +4,8 @@ Notable changes to this role. The format follows [Keep a Changelog](https://keep
 
 ## Unreleased
 
+## 1.1.0 - 2026-11-12
+
 ### Added
 
 - `mde_linux_check_onboarding_org_id`, off by default: before installing anything, read the organisation ID inside the onboarding package on the control node and stop unless it is `mde_linux_expected_org_id`, so a package from the wrong tenant never reaches a host.
@@ -23,6 +25,7 @@ Notable changes to this role. The format follows [Keep a Changelog](https://keep
 
 - `ansible-galaxy role install libre_devops.mde_linux` failed with HTTP 404, because Galaxy built the 1.0.0 download link from github.com/libre_devops, which does not exist. Importing 1.0.0 again with the new Release workflow corrects it.
 - `just converge` failed, because `molecule converge` has no `--platform-name`. It now runs the scenario on the one platform and keeps the container.
+- The README's Galaxy badge linked to a Galaxy page that does not load without a tab; it now opens the role's documentation tab.
 
 ## 1.0.0 - 2026-11-11
 
