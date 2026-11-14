@@ -94,6 +94,8 @@ jobs:
           - { scenario: remove, platform: debian12 }
           - { scenario: remove, platform: sles15 }
           - { scenario: managed_config, platform: rhel9 }
+          - { scenario: no_repositories, platform: rhel9 }
+          - { scenario: no_repositories, platform: debian12 }
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -1,0 +1,36 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    # Proves the scenario tested what it says: had the repositories still been in reach, the
+    # second run would have passed without the fix too.
+    - name: Try to read the repositories
+      ansible.builtin.command: "{{ 'dnf makecache' if ansible_facts['pkg_mgr'] in ['dnf', 'dnf5'] else 'apt-get update' }}"
+      register: __verify_repositories
+      changed_when: false
+      failed_when: false
+
+    - name: Check the repositories were out of reach
+      ansible.builtin.assert:
+        that:
+          - __verify_repositories.rc != 0 or 'Failed to fetch' in __verify_repositories.stdout ~ __verify_repositories.stderr
+        fail_msg: The repositories were reachable, so the second run proved nothing.
+        quiet: true
+
+    - name: Read the installed packages
+      ansible.builtin.package_facts:
+
+    - name: Read the mdatp service
+      ansible.builtin.systemd_service:
+        name: mdatp
+      register: __verify_service
+
+    - name: Check mdatp is installed and running
+      ansible.builtin.assert:
+        that:
+          - "'mdatp' in ansible_facts.packages"
+          - __verify_service.status.ActiveState == 'active'
+          - __verify_service.status.UnitFileState == 'enabled'
+        quiet: true

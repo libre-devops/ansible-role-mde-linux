@@ -4,6 +4,14 @@ Notable changes to this role. The format follows [Keep a Changelog](https://keep
 
 ## Unreleased
 
+### Fixed
+
+- The role no longer calls the package manager when `mdatp` is already installed at the version asked for (`mde_linux_package_state: present`), reading the RPM or dpkg database instead. On a host that reaches no repository, such as one whose package came from `libre_devops.standalone_package_installer` with `mde_linux_manage_repository: false`, the install step failed even with the package in place, because dnf reads every enabled repository on every call (found on a RHEL 9 Azure VM with no internet) and apt refreshes its cache. `latest` still asks the package manager.
+
+### Added
+
+- The `no_repositories` Molecule scenario, on RHEL 9 and Debian 12: install the agent, make every repository unreachable, run the role again with `mde_linux_manage_repository: false`, and check the repositories really were out of reach and the agent runs.
+
 ## 1.1.0 - 2026-11-12
 
 ### Added

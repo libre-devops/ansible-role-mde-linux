@@ -1,0 +1,14 @@
+---
+# Installs the agent, makes every package repository unreachable, then runs the role again with
+# mde_linux_manage_repository: false, as on a host whose packages come from
+# libre_devops.standalone_package_installer and that reaches no repository at all (found on a RHEL 9
+# Azure VM with no internet, where the package task failed on the unreachable RHUI repositories).
+# No idempotence step: every converge breaks the repositories again.
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - verify
+    - destroy

@@ -1,15 +1,36 @@
 ---
+# Read what is installed first: the RPM or dpkg database, which needs no repository. When mdatp is
+# already there at the version asked for, the package manager is not called at all. That is what
+# lets the role run on a host whose repositories are out of reach, after
+# libre_devops.standalone_package_installer pushed the package: dnf loads the metadata of every
+# enabled repository on every call, even for a package that is installed, and apt's cache refresh
+# fails the same way. latest still asks the package manager, because it needs a repository.
+- name: Read the installed packages
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Work out whether the package manager is needed
+  ansible.builtin.set_fact:
+    __mde_linux_package_needed: >-
+      {{ mde_linux_package_state != 'present'
+         or 'mdatp' not in ansible_facts['packages']
+         or (mde_linux_version | length > 0
+             and mde_linux_version not in (ansible_facts['packages']['mdatp'] | map(attribute='version') | list)) }}
+
 # Refresh straight away after the source list changed, otherwise when older than an hour.
 - name: Refresh the apt cache
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: "{{ 0 if (__mde_linux_apt_source | default({}) is changed) else 3600 }}"
-  when: ansible_facts['pkg_mgr'] == 'apt'
+  when:
+    - ansible_facts['pkg_mgr'] == 'apt'
+    - __mde_linux_package_needed | bool
 
 - name: Install the mdatp package
   ansible.builtin.package:
     name: "{{ __mde_linux_package }}"
     state: "{{ mde_linux_package_state }}"
+  when: __mde_linux_package_needed | bool
 
 - name: Start the mdatp service and enable it at boot
   ansible.builtin.systemd_service:

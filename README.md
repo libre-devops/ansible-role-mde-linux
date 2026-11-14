@@ -414,6 +414,8 @@ dnf --repofrompath=ms,https://packages.microsoft.com/rhel/9/prod --setopt=ms.gpg
 
 The package installer pushes nothing when the same version is installed already, so later runs only configure. On 11 November 2026 this ran on AlmaLinux 9 with `mdatp` 101.26101.0000 and `mde_linux_onboard: false`: the agent installed with its signature checked and no Microsoft repository, and a second run changed nothing. For anything you keep, prefer a mirror of the repository with `mde_linux_repository_url`.
 
+For hosts that reach no repository at all, add `standalone_package_installer_use_repos: false`, so the package installs from the file alone (its dependencies, `glibc`, `iptables` and `libacl` on RHEL, must be on the host already). This role then finds `mdatp` installed at the version asked for and does not call the package manager, which would otherwise fail on the unreachable repositories: dnf reads every enabled repository on every call, and apt refreshes its cache. `mde_linux_package_state: latest` still asks the package manager, because it needs a repository. On 14 November 2026 this ran on a RHEL 9 Azure VM with no route to the internet, the RPM pushed through an Azure Bastion from Terraform ([azure-orchestration](https://github.com/libre-devops/azure-orchestration)'s `mde-rhel-offline` stack), and the `no_repositories` Molecule scenario tests it on every change.
+
 ### Passive mode alongside another antivirus product
 
 ```yaml
