@@ -1,0 +1,22 @@
+---
+- name: Install the agent's package from packages.microsoft.com
+  hosts: all
+  become: true
+  vars:
+    mde_linux_onboard: false
+  gather_facts: false
+  tasks:
+    - name: Check the host
+      ansible.builtin.include_role:
+        name: libre_devops.mde_linux
+        tasks_from: assert
+
+    - name: Configure the repository
+      ansible.builtin.include_role:
+        name: libre_devops.mde_linux
+        tasks_from: repository
+
+    - name: Install the package
+      ansible.builtin.include_role:
+        name: libre_devops.mde_linux
+        tasks_from: install

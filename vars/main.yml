@@ -86,3 +86,9 @@ __mde_linux_repository_path: "{{ mde_linux_repository_path | default('', true) o
 __mde_linux_package: >-
   {{ 'mdatp' if not mde_linux_version
      else ('mdatp=' ~ mde_linux_version if ansible_facts['pkg_mgr'] == 'apt' else 'mdatp-' ~ mde_linux_version) }}
+
+# RHEL 7 (and its rebuilds) have yum and no dnf. ansible-core 2.17 removed the yum module, and
+# package_facts needs the rpm Python bindings, which only RHEL 7's own Python 2.7 has: there the
+# role reads the RPM database with rpm and runs yum as a command.
+__mde_linux_el7: >-
+  {{ ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution_major_version'] | default('') == '7' }}

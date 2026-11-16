@@ -10,11 +10,30 @@
     purge: true
   when: ansible_facts['pkg_mgr'] == 'apt'
 
+# No repository is needed to remove a package, and dnf and yum would otherwise load every enabled
+# repository's metadata first, failing on a host that reaches none (such as one whose package came
+# from libre_devops.standalone_package_installer).
+- name: Remove the mdatp package (dnf)
+  ansible.builtin.package:
+    name: mdatp
+    state: absent
+    disablerepo: "*"
+  when: ansible_facts['pkg_mgr'] in ['dnf', 'dnf5']
+
 - name: Remove the mdatp package
   ansible.builtin.package:
     name: mdatp
     state: absent
-  when: ansible_facts['pkg_mgr'] != 'apt'
+  when:
+    - ansible_facts['pkg_mgr'] not in ['apt', 'dnf', 'dnf5']
+    - not __mde_linux_el7 | bool
+
+- name: Remove the mdatp package (yum, RHEL 7)  # noqa: command-instead-of-module
+  ansible.builtin.command:
+    argv: [yum, -y, --disablerepo=*, remove, mdatp]
+  register: __mde_linux_yum_remove
+  changed_when: "'No Packages marked for removal' not in __mde_linux_yum_remove.stdout"
+  when: __mde_linux_el7 | bool
 
 - name: Delete the agent's configuration, data and logs
   ansible.builtin.file:

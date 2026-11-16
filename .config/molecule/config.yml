@@ -7,6 +7,11 @@ driver:
   name: podman
 
 platforms:
+  - name: mde-rhel7
+    image: registry.access.redhat.com/ubi7/ubi-init:latest
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
   - name: mde-rhel9
     image: registry.access.redhat.com/ubi9/ubi-init:latest
     dockerfile: ../../.config/molecule/Containerfile.j2
@@ -56,7 +61,10 @@ provisioner:
       interpreter_python: auto_silent
   inventory:
     host_vars:
-      # SLES 15 ships Python 3.6, which ansible-core no longer supports on targets.
+      # RHEL 7 ships Python 2.7 and SLES 15 Python 3.6, which ansible-core no longer supports on
+      # targets. RHEL 7's comes from the test image (see Containerfile.j2).
+      mde-rhel7:
+        ansible_python_interpreter: /opt/python/bootstrap/bin/python3
       mde-sles15:
         ansible_python_interpreter: /usr/bin/python3.11
 

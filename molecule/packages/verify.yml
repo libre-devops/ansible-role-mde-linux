@@ -1,0 +1,66 @@
+---
+- name: Verify the install, then a run and a removal with no repository in reach
+  hosts: all
+  become: true
+  vars:
+    mde_linux_onboard: false
+  gather_facts: true
+  tasks:
+    - name: Read the installed mdatp  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        argv: [rpm, -q, --queryformat, "%{VERSION}", mdatp]
+      register: __verify_installed
+      changed_when: false
+
+    - name: Send yum through a proxy that refuses connections (RHEL 7)
+      community.general.ini_file:
+        path: /etc/yum.conf
+        section: main
+        option: proxy
+        value: http://127.0.0.1:9
+        mode: "0644"
+      when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution_major_version'] == '7'
+
+    - name: Send dnf through a proxy that refuses connections
+      community.general.ini_file:
+        path: /etc/dnf/dnf.conf
+        section: main
+        option: proxy
+        value: http://127.0.0.1:9
+        mode: "0644"
+      when: ansible_facts['pkg_mgr'] in ['dnf', 'dnf5']
+
+    - name: Drop the cached metadata
+      ansible.builtin.command: "{{ 'yum' if ansible_facts['distribution_major_version'] == '7' else 'dnf' }} clean all"
+      changed_when: true
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Run the install again with no repository in reach
+      ansible.builtin.include_role:
+        name: libre_devops.mde_linux
+        tasks_from: install
+      vars:
+        mde_linux_manage_repository: false
+
+    - name: Remove the package with no repository in reach
+      ansible.builtin.include_role:
+        name: libre_devops.mde_linux
+        tasks_from: uninstall
+      vars:
+        mde_linux_manage_repository: false
+
+    - name: Read mdatp again  # noqa: command-instead-of-module
+      ansible.builtin.command:
+        argv: [rpm, -q, mdatp]
+      register: __verify_removed
+      changed_when: false
+      failed_when: false
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Check it was installed and is now removed
+      ansible.builtin.assert:
+        that:
+          - __verify_installed.stdout | default('') is match('^[0-9]+\\.')
+          - __verify_removed.rc != 0
+        quiet: true
+      when: ansible_facts['os_family'] == 'RedHat'

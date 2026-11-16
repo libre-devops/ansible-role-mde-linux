@@ -6,7 +6,27 @@
 # install but missing from the minimal images, and Microsoft's agents need them.
 FROM {{ item.image }}
 
-{% if 'ubi' in item.image %}
+{% if 'ubi7' in item.image %}
+# RHEL 7 ships Python 2.7 only: this gives it what libre_devops.python would push, a
+# python-build-standalone build, checked against its published checksum. mdatp also needs
+# iptables, which every RHEL 7 server has but UBI 7 cannot install: it comes from the CentOS 7
+# vault (the same build), with CentOS's key checked by fingerprint, and the vault is removed after.
+RUN yum -y install sudo \
+    && echo 'Defaults !pam_acct_mgmt' > /etc/sudoers.d/molecule \
+    && chmod 0440 /etc/sudoers.d/molecule \
+    && curl -fsSL -o /tmp/centos.key https://vault.centos.org/RPM-GPG-KEY-CentOS-7 \
+    && gpg --with-fingerprint --with-colons /tmp/centos.key | grep -q '^fpr:::::::::6341AB2753D78A78A7C27BB124C6A8A7F4A80EB5:' \
+    && rpm --import /tmp/centos.key \
+    && printf '[centos-vault]\nname=CentOS 7 vault\nbaseurl=https://vault.centos.org/7.9.2009/os/x86_64/\ngpgcheck=1\n' > /etc/yum.repos.d/centos-vault.repo \
+    && yum -y install iptables \
+    && rm -f /etc/yum.repos.d/centos-vault.repo /tmp/centos.key \
+    && yum clean all \
+    && curl -fsSL -o /tmp/python.tar.gz 'https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.12.16%2B20261026-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz' \
+    && echo 'ce4f6d0a6cfdb3bed6e44c2f9affd85943c76a42e25ad3a259002f31d6fb8a20  /tmp/python.tar.gz' | sha256sum -c - \
+    && mkdir -p /opt/python/bootstrap \
+    && tar -xzf /tmp/python.tar.gz -C /opt/python/bootstrap --strip-components=1 \
+    && rm /tmp/python.tar.gz
+{% elif 'ubi' in item.image %}
 RUN dnf -y install sudo \
     && dnf clean all \
     && echo 'Defaults !pam_acct_mgmt' > /etc/sudoers.d/molecule \

@@ -90,6 +90,8 @@ jobs:
           - { scenario: default, platform: ubuntu2604 }
           - { scenario: default, platform: sles15 }
           - { scenario: default, platform: sles16 }
+          - { scenario: packages, platform: rhel7 }
+          - { scenario: packages, platform: rhel9 }
           - { scenario: remove, platform: rhel9 }
           - { scenario: remove, platform: debian12 }
           - { scenario: remove, platform: sles15 }

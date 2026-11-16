@@ -53,7 +53,7 @@ Microsoft recommends its own deployment tool or installer script for most estate
 |---|---|
 | Control node | `ansible-core` 2.16 or later. |
 | Collections | `community.general`, for SUSE hosts only (`ansible.builtin.package` hands over to `community.general.zypper` there). The `ansible` package already includes it. |
-| Managed nodes | A [supported distribution](#supported-platforms) with systemd, on x86_64 or aarch64, and a Python that your `ansible-core` supports. RHEL 8 and SLES 15 ship Python 3.6, which ansible-core 2.17 and later cannot use: run [libre_devops.python](https://github.com/libre-devops/ansible-role-python) first, as in [RHEL 8 hosts with only Python 3.6](#rhel-8-hosts-with-only-python-36). |
+| Managed nodes | A [supported distribution](#supported-platforms) with systemd, on x86_64 or aarch64, and a Python that your `ansible-core` supports. RHEL 7 ships Python 2.7, and RHEL 8 and SLES 15 Python 3.6, which ansible-core 2.17 and later cannot use: run [libre_devops.python](https://github.com/libre-devops/ansible-role-python) first, as in [RHEL 8 hosts with only Python 3.6](#rhel-8-hosts-with-only-python-36). |
 | Privileges | `become: true`. The role installs packages and writes under `/etc`. |
 | Network | HTTPS to `packages.microsoft.com` (or your mirror) and to the Defender for Endpoint service URLs ([Microsoft Learn: Configure your network environment](https://learn.microsoft.com/en-us/defender-endpoint/configure-environment)). |
 | Licence | Defender for Endpoint (or Defender for Servers) licences, and the onboarding package from your tenant. |
@@ -66,7 +66,7 @@ The role works out the packages.microsoft.com path from the host's facts, with t
 
 | Family | Distributions | Repository path | Tested in CI |
 |---|---|---|---|
-| RHEL | RHEL, Rocky, Alma, Oracle Linux, CentOS Stream 8, 9 and 10 | `rhel/<major>` | RHEL 9 (UBI), Rocky 10 |
+| RHEL | RHEL, Rocky, Alma, Oracle Linux, CentOS Stream 8, 9 and 10; RHEL 7 (see below) | `rhel/<major>` | RHEL 9 (UBI), Rocky 10; RHEL 7 (UBI) for the package handling |
 | Amazon | Amazon Linux 2023 and 2 | `amazonlinux/<major>` | No |
 | Fedora | Fedora 43 and later (earlier releases) | `fedora/<version>` (`rhel/8`) | No |
 | Debian | Debian 12 and 13 | `debian/<major>` | Debian 12, Debian 13 |
@@ -74,6 +74,8 @@ The role works out the packages.microsoft.com path from the host's facts, with t
 | SUSE | SLES 15 and 16, openSUSE Leap 15 and 16 | `sles/<major>` | SLES 15, SLES 16 (BCI) |
 
 Microsoft's full list, with the exact minor versions and kernel requirements, is in [Microsoft Learn: Supported Linux distributions](https://learn.microsoft.com/en-us/defender-endpoint/mde-linux-prerequisites#supported-linux-distributions). A distribution missing from that list is not supported by Microsoft, whatever this role does.
+
+**RHEL 7** has yum and no dnf, and ansible-core 2.17 removed the `yum` module, so there the role reads the RPM database with `rpm` and runs `yum` as a command, with the repository's signature checks as usual. It needs a Python current ansible-core can use: [libre_devops.python](https://github.com/libre-devops/ansible-role-python) pushes a python-build-standalone build. CI tests the package handling on UBI 7 (the `packages` scenario: install, a second run, a run with no repository in reach, removal). RHEL 7's systemd 219 cannot run as PID 1 on a cgroup v2 host, so the service, configuration and onboarding on RHEL 7 are tested on a VM.
 
 The tests run in containers, where the agent installs but cannot license itself. Onboarding, offboarding and the health checks need a real VM: see [Developing](#developing).
 
@@ -490,8 +492,9 @@ You need [uv](https://docs.astral.sh/uv/), [just](https://github.com/casey/just)
 | `default` | A package for another organisation is refused before anything is installed. Then repository, keys, package, service, `mdatp_managed.json` from a JSON file and the onboarding file with its organisation checked, then a second run with no changes. |
 | `remove` | `absent` with an offboarding package, `mde_linux_remove_repository` and `mde_linux_remove_data` leave nothing behind. |
 | `managed_config` | The entry point merges into an existing profile, deletes a key, merges more from a YAML file, and changes nothing on a second run. |
+| `packages` | The package handling alone, on RHEL 7 and 9: install from packages.microsoft.com, a second run with no changes, a run with no repository in reach, and removal with none in reach. |
 
-Every platform runs systemd as PID 1 in a podman container, built from the vendor's image with `sudo`, Python, and the few packages a normal server install has and the minimal images lack (`libcap2`, `util-linux-systemd`). The RHEL 10 family runs on Rocky 10, because the UBI 10 repositories do not carry the `iptables` package `mdatp` needs. Container names start with `mde-`, so tests of the other Libre DevOps roles can run alongside. The agent cannot license itself in a container, so the scenarios use dummy onboarding and offboarding packages from `molecule/fixtures` (the onboarding one has Microsoft's layout and a made-up organisation ID) and switch the health checks off. Test onboarding, offboarding and the checks against a lab VM onboarded to a test tenant with `just live`.
+Every platform runs systemd as PID 1 in a podman container, built from the vendor's image with `sudo`, Python, and the few packages a normal server install has and the minimal images lack (`libcap2`, `util-linux-systemd`). The RHEL 10 family runs on Rocky 10, because the UBI 10 repositories do not carry the `iptables` package `mdatp` needs. UBI 7 lacks it too, so its image takes `iptables` from the CentOS 7 vault (the same build, CentOS's key checked by fingerprint), and gets Python 3.12 from a python-build-standalone archive, as `libre_devops.python` would push it. Container names start with `mde-`, so tests of the other Libre DevOps roles can run alongside. The agent cannot license itself in a container, so the scenarios use dummy onboarding and offboarding packages from `molecule/fixtures` (the onboarding one has Microsoft's layout and a made-up organisation ID) and switch the health checks off. Test onboarding, offboarding and the checks against a lab VM onboarded to a test tenant with `just live`.
 
 ## Releasing
 

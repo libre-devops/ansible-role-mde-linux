@@ -9,7 +9,7 @@
 
 # A proxy on a port nothing listens on, and no cached metadata: every repository download is
 # refused, as on a host with no route out. The cached metadata has to go too, or dnf and apt would
-# not need the network at all.
+# not need the network at all. RHEL 7 has yum, which ansible-core reports as pkg_mgr unknown.
 - name: Make every package repository unreachable
   hosts: all
   become: true
@@ -28,6 +28,20 @@
       ansible.builtin.command: dnf clean all
       changed_when: true
       when: ansible_facts['pkg_mgr'] in ['dnf', 'dnf5']
+
+    - name: Send yum through a proxy that refuses connections (RHEL 7)
+      community.general.ini_file:
+        path: /etc/yum.conf
+        section: main
+        option: proxy
+        value: http://127.0.0.1:9
+        mode: "0644"
+      when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution_major_version'] == '7'
+
+    - name: Drop yum's cached metadata (RHEL 7)
+      ansible.builtin.command: yum clean all
+      changed_when: true
+      when: ansible_facts['os_family'] == 'RedHat' and ansible_facts['distribution_major_version'] == '7'
 
     - name: Send apt through a proxy that refuses connections
       ansible.builtin.copy:

@@ -12,6 +12,9 @@
     - name: Install the mdatp package
       ansible.builtin.include_tasks: install.yml
 
+    - name: Start the agent
+      ansible.builtin.include_tasks: service.yml
+
     - name: Write the managed configuration profile
       ansible.builtin.include_tasks: managed_config.yml
       when: >-

@@ -1,0 +1,17 @@
+---
+# The package handling alone, on the RPM family (CI runs it on RHEL 7 and 9): install from packages.microsoft.com, a second run that changes
+# nothing, a run with every repository out of reach (as on a host whose package came from
+# libre_devops.standalone_package_installer), and removal with the repositories still out of
+# reach. It runs the role's repository, install and uninstall tasks without the service, so it
+# also runs on RHEL 7, whose systemd 219 cannot run as PID 1 on a cgroup v2 host such as
+# GitHub's runners. The service, configuration and onboarding are the default scenario's, and on
+# RHEL 7 a real VM's (the live run).
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy
