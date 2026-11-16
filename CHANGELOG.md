@@ -4,6 +4,8 @@ Notable changes to this role. The format follows [Keep a Changelog](https://keep
 
 ## Unreleased
 
+## 1.2.0 - 2026-11-16
+
 ### Added
 
 - RHEL 7. It has yum and no dnf, ansible-core 2.17 removed the `yum` module, and `package_facts` needs rpm bindings only RHEL 7's Python 2.7 has, so on RHEL 7 the role reads the installed version with `rpm` and installs, updates and removes with `yum` as a command (removal with the repositories off, so it works with none in reach). A new `packages` scenario tests the package handling on its own, on UBI 7 and UBI 9 in CI.
